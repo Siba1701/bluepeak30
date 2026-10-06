@@ -62,7 +62,50 @@ export async function POST(request: Request) {
     } catch (dbError) {
       console.error("Failed to persist inquiry to Neon PostgreSQL:", dbError);
     }
+    // Trigger n8n lead automation after successful Neon persistence
+    if (inquiryId && process.env.N8N_WEBHOOK_URL) {
+      try {
+        const n8nResponse = await fetch(process.env.N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            lead_id: inquiryId,
+            name,
+            email,
+            phone: phone || null,
+            company: company || null,
+            project_type: projectType,
+            budget: budget || null,
+            timeline: timeline || null,
+            description,
+            source: "BluePeak Website",
+          }),
+        });
 
+        if (!n8nResponse.ok) {
+          console.error(
+            "n8n webhook failed:",
+            n8nResponse.status,
+            await n8nResponse.text()
+          );
+        } else {
+          console.log(
+            `Lead #${inquiryId} successfully sent to n8n.`
+          );
+        }
+      } catch (n8nError) {
+        console.error(
+          "Failed to trigger n8n webhook:",
+          n8nError
+        );
+      }
+    } else {
+      console.warn(
+        "n8n webhook not triggered: missing inquiryId or N8N_WEBHOOK_URL."
+      );
+    }
     // Text for Admin Email
     const adminMailText = `NEW PROJECT REQUEST
 
