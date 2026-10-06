@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { sql } from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
@@ -31,6 +32,36 @@ export async function POST(request: Request) {
     const adminRecipient = process.env.CONTACT_TO_EMAIL || "ascreater401@gmail.com";
     const gmailUser = process.env.GMAIL_USER;
     const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+
+    // 2. Persist to Neon Postgres
+    let inquiryId: number | null = null;
+    try {
+      if (process.env.DATABASE_URL) {
+        const result = await sql`
+          INSERT INTO inquiries (
+            name, email, phone, company, project_type, budget, timeline, description
+          ) VALUES (
+            ${name},
+            ${email},
+            ${phone || null},
+            ${company || null},
+            ${projectType},
+            ${budget || null},
+            ${timeline || null},
+            ${description}
+          )
+          RETURNING id;
+        `;
+        if (result && result.length > 0) {
+          inquiryId = result[0].id as number;
+          console.log(`✓ Inquiry #${inquiryId} successfully saved to Neon PostgreSQL.`);
+        }
+      } else {
+        console.warn("DATABASE_URL is not configured; skipping database persistence.");
+      }
+    } catch (dbError) {
+      console.error("Failed to persist inquiry to Neon PostgreSQL:", dbError);
+    }
 
     // Text for Admin Email
     const adminMailText = `NEW PROJECT REQUEST
@@ -147,7 +178,8 @@ BluePeak Web Co.
 
       return NextResponse.json({
         success: true,
-        message: "Project request sent successfully via Gmail SMTP.",
+        inquiryId,
+        message: "Project request sent and saved successfully.",
       });
     } else {
       // Development / Test fallback mode: Log details to console cleanly
@@ -166,8 +198,11 @@ BluePeak Web Co.
       return NextResponse.json({
         success: true,
         simulated: true,
+        inquiryId,
         message:
-          "Project inquiry processed and validated. (Note: To send live emails, set GMAIL_USER and GMAIL_APP_PASSWORD in .env.local)",
+          inquiryId
+            ? "Project inquiry saved successfully to Neon PostgreSQL."
+            : "Project inquiry processed and validated.",
       });
     }
   } catch (error: any) {
