@@ -32,16 +32,37 @@ async function setup() {
       budget VARCHAR(100),
       timeline VARCHAR(100),
       description TEXT,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      status VARCHAR(50) DEFAULT 'New',
+      payment_status VARCHAR(50) DEFAULT 'Unpaid',
+      total_amount NUMERIC(10, 2) DEFAULT 0,
+      paid_amount NUMERIC(10, 2) DEFAULT 0,
+      start_date DATE,
+      deadline_date DATE,
+      progress_percentage INTEGER DEFAULT 0,
+      admin_notes TEXT
     );
   `;
 
-  console.log("✓ Table 'inquiries' is created / ready.");
+  // Safely add any new columns to existing table if table was created previously
+  await sql`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'New';`;
+  await sql`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'Unpaid';`;
+  await sql`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10, 2) DEFAULT 0;`;
+  await sql`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(10, 2) DEFAULT 0;`;
+  await sql`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS start_date DATE;`;
+  await sql`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS deadline_date DATE;`;
+  await sql`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS progress_percentage INTEGER DEFAULT 0;`;
+  await sql`ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS admin_notes TEXT;`;
+
+  console.log("✓ Table 'inquiries' is created & migrated with progress/payment tracking columns.");
 
   const result = await sql`
-    SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
+    SELECT column_name, data_type 
+    FROM information_schema.columns 
+    WHERE table_name = 'inquiries' 
+    ORDER BY ordinal_position;
   `;
-  console.log("Public tables in database:", result);
+  console.log("Columns in inquiries table:", result);
 }
 
 setup().catch((err) => {

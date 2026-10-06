@@ -2,11 +2,17 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Mail, ArrowUpRight, Heart, Shield, Code, Sparkles } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 
 export default function Footer() {
   const { theme } = useTheme();
+  const pathname = usePathname();
+
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <footer

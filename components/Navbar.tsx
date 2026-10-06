@@ -25,6 +25,10 @@ export default function Navbar() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
+
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Services", href: "/services" },
